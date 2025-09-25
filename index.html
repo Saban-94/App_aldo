@@ -7,11 +7,38 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Assistant', sans-serif; }
-        .screen { display: none; }
-        .active-screen { display: block; }
+        body { font-family: 'Assistant', sans-serif; overflow-y: hidden; }
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            opacity: 0;
+            transform: scale(0.98);
+            pointer-events: none;
+        }
+        .active-screen {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
         #popup-overlay.hidden, #loading-spinner.hidden { display: none; }
         #popup-overlay, #loading-spinner { display: flex; }
+        /* Typing effect for placeholder */
+        .typing-placeholder::placeholder {
+            animation: typing 3s steps(30, end) infinite, blink-caret .75s step-end infinite;
+            white-space: nowrap;
+            overflow: hidden;
+            border-right: .15em solid orange;
+        }
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: orange; }
+        }
         /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -21,34 +48,36 @@
 </head>
 <body class="bg-gray-100">
 
-    <div id="app-container" class="max-w-md mx-auto bg-white min-h-screen shadow-lg relative">
+    <div id="app-container" class="max-w-md mx-auto bg-white h-screen shadow-lg relative overflow-hidden">
 
         <!-- ===== Login Screen ===== -->
-        <div id="login-screen" class="screen active-screen p-6 flex flex-col justify-between h-screen bg-gray-50">
-            <div>
-                <div class="p-2 border-2 border-gray-200 rounded-lg inline-block mx-auto block w-fit mb-8 shadow-md">
-                    <img src="https://i.postimg.cc/CMsm57QV/image.png" alt="לוגו החברה" class="h-16 mx-auto">
-                </div>
-                <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">כניסת לקוחות</h1>
-                <p class="text-center text-gray-500 mb-8">אנא הזן את מספר הלקוח שלך</p>
+        <div id="login-screen" class="screen active-screen p-6 flex flex-col h-full bg-gray-50">
+            <div class="text-center pt-8">
+                <img src="https://img.icons8.com/?size=100&id=106PofAoe3p7&format=png&color=000001" alt="אווטאר" class="h-20 w-20 rounded-full mx-auto p-1 border-4 border-blue-200 shadow-lg">
+                <h1 class="text-3xl font-bold text-gray-800 mt-4">כניסת לקוחות</h1>
+                <p class="text-gray-500 mb-6">ברוכים הבאים למערכת ההזמנות</p>
             </div>
             
             <div class="flex-grow flex flex-col justify-center">
-                <input type="number" id="customer-id-input" class="w-full p-4 border border-gray-300 rounded-lg text-center text-xl tracking-widest mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="הזן מספר לקוח">
+                <input type="number" id="customer-id-input" class="w-full p-4 border border-gray-300 rounded-lg text-center text-xl tracking-widest mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="הזן מספר לקוח...">
                 <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-300 text-lg shadow-lg">כניסה למערכת</button>
-                <p id="login-error" class="text-red-500 text-center mt-4 hidden h-6"></p>
+                <p id="login-error" class="text-red-500 text-center mt-4 h-6"></p>
             </div>
             
-            <div class="text-center mt-auto">
-                <img src="https://img.icons8.com/?size=100&id=106PofAoe3p7&format=png&color=000001" alt="אווטאר" class="h-16 w-16 rounded-full mx-auto p-1 border-2 border-blue-200 shadow-sm">
-                <p class="text-xs text-gray-400 mt-2">מערכת הזמנות V6</p>
+            <div class="text-center pb-4">
+                 <div class="flex justify-center items-center space-x-4">
+                    <img src="https://i.postimg.cc/CMsm57QV/image.png" alt="לוגו החברה" class="h-12">
+                    <div id="datetime" class="text-right">
+                        <p id="time" class="text-lg font-semibold text-gray-700"></p>
+                        <p id="date" class="text-sm text-gray-500"></p>
+                    </div>
+                </div>
             </div>
         </div>
 
-
-        <!-- ===== Catalog Screen ===== -->
-        <div id="catalog-screen" class="screen p-4">
-            <div class="flex justify-between items-center mb-4">
+        <!-- ===== Other Screens remain the same... ===== -->
+        <div id="catalog-screen" class="screen p-4 overflow-y-auto">
+             <div class="flex justify-between items-center mb-4 sticky top-0 bg-white py-2 z-10">
                 <h1 class="text-2xl font-bold text-gray-800">קטלוג מוצרים</h1>
                 <div class="relative">
                     <button onclick="showScreen('cart-screen')" class="p-2 rounded-full hover:bg-gray-200">
@@ -57,36 +86,28 @@
                     </button>
                 </div>
             </div>
-            <div id="catalog-grid" class="grid grid-cols-2 gap-4">
-                <!-- Products will be injected here by JavaScript -->
-            </div>
+            <div id="catalog-grid" class="grid grid-cols-2 gap-4"></div>
         </div>
 
-        <!-- ===== Product Detail Screen ===== -->
-        <div id="product-detail-screen" class="screen">
-            <div class="p-4">
+        <div id="product-detail-screen" class="screen overflow-y-auto">
+            <div class="p-4 sticky top-0 bg-white z-10">
                 <button onclick="showScreen('catalog-screen')" class="mb-4 text-blue-600">&larr; חזרה לקטלוג</button>
             </div>
-            <div id="product-detail-content">
-                <!-- Product details will be injected here -->
-            </div>
-            <div class="p-4 mt-4 bg-gray-50">
+            <div id="product-detail-content"></div>
+            <div class="p-4 mt-4 bg-gray-50 sticky bottom-0">
                  <label for="quantity-input" class="block text-sm font-medium text-gray-700 mb-1">כמות</label>
                  <input type="number" id="quantity-input" value="1" min="1" class="w-full p-2 border border-gray-300 rounded-md mb-4">
                  <button id="add-to-cart-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">הוסף לעגלה</button>
             </div>
         </div>
         
-        <!-- ===== Cart Screen ===== -->
-        <div id="cart-screen" class="screen p-4">
+        <div id="cart-screen" class="screen p-4 flex flex-col h-full">
             <div class="flex items-center mb-4">
                  <button onclick="showScreen('catalog-screen')" class="p-2 text-blue-600">&larr; חזרה לקטלוג</button>
                  <h1 class="text-2xl font-bold text-gray-800 mr-2">עגלת קניות</h1>
             </div>
-            <div id="cart-items-container" class="mb-4">
-                <!-- Cart items will be injected here -->
-            </div>
-             <div class="space-y-4">
+            <div id="cart-items-container" class="mb-4 flex-grow overflow-y-auto"></div>
+             <div class="space-y-4 mt-auto bg-white py-4">
                 <input type="text" id="delivery-address-input" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="כתובת למשלוח">
                 <textarea id="order-notes-input" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="הערות להזמנה"></textarea>
                 <button onclick="submitOrder()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition">אישור ושליחת הזמנה לוואטסאפ</button>
@@ -99,8 +120,8 @@
         </div>
 
         <!-- ===== Global Popup (Modal) ===== -->
-        <div id="popup-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-40 p-4">
-            <div id="popup-content" class="bg-white rounded-lg shadow-2xl p-6 text-center max-w-sm w-full">
+        <div id="popup-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-40 p-4 transition-opacity duration-300">
+            <div id="popup-content" class="bg-white rounded-lg shadow-2xl p-6 text-center max-w-sm w-full transform transition-all duration-300 scale-95 opacity-0">
                 <div id="popup-icon" class="text-5xl mb-4"></div>
                 <h2 id="popup-title" class="text-2xl font-bold text-gray-800 mb-2"></h2>
                 <p id="popup-message" class="text-gray-600 mb-6"></p>
@@ -116,38 +137,18 @@
         let loggedInUser = null;
         let products = [];
         let cart = [];
+        let refreshInterval;
 
         // --- POPUP MESSAGE LIBRARY ---
         const popupMessages = {
-            welcomeMorning: {
-                icon: '☀️',
-                title: 'בוקר טוב',
-                message: 'כיף לראות אותך! מוכן להתחיל את היום?'
-            },
-            welcomeAfternoon: {
-                icon: '👋',
-                title: 'צהריים טובים',
-                message: 'מקווים שהיום שלך הולך מצוין!'
-            },
-            welcomeEvening: {
-                icon: '🌙',
-                title: 'ערב טוב',
-                message: 'שמחים שאתה כבר מארגן את ההזמנות למחר. לנו זה נותן זמן להתארגן ואתה תקבל הכל במועד.'
-            },
-            orderSuccess: {
-                icon: '✅',
-                title: 'ההזמנה נשלחה!',
-                message: 'ההזמנה שלך התקבלה ונשלחה אלינו לוואטסאפ. ניצור קשר בהקדם.'
-            },
-             cartAddSuccess: {
-                icon: '🛒',
-                title: 'נוסף לעגלה',
-                message: 'המוצר נוסף לעגלה בהצלחה.'
-            },
+            welcomeMorning: { icon: '☀️', title: 'בוקר טוב', message: 'כיף לראות אותך! מוכן להתחיל את היום?' },
+            welcomeAfternoon: { icon: '👋', title: 'צהריים טובים', message: 'מקווים שהיום שלך הולך מצוין!' },
+            welcomeEvening: { icon: '🌙', title: 'ערב טוב', message: 'שמחים שאתה כבר מארגן את ההזמנות למחר. לנו זה נותן זמן להתארגן ואתה תקבל הכל במועד.' },
+            orderSuccess: { icon: '✅', title: 'ההזמנה נשלחה!', message: 'ההזמנה שלך התקבלה ונשלחה אלינו לוואטסאפ. ניצור קשר בהקדם.' },
+            cartAddSuccess: { icon: '🛒', title: 'נוסף לעגלה', message: 'המוצר נוסף לעגלה בהצלחה.' }
         };
 
         // --- CORE UI FUNCTIONS ---
-
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(screen => {
                 screen.classList.remove('active-screen');
@@ -162,23 +163,30 @@
         function showPopup(type, userName = '') {
             const popup = popupMessages[type];
             if (!popup) return;
-
             document.getElementById('popup-icon').textContent = popup.icon;
             document.getElementById('popup-title').textContent = `${popup.title} ${userName}`;
             document.getElementById('popup-message').textContent = popup.message;
             document.getElementById('popup-overlay').classList.remove('hidden');
+            setTimeout(() => { // For animation
+                document.getElementById('popup-content').classList.add('scale-100', 'opacity-100');
+                document.getElementById('popup-content').classList.remove('scale-95', 'opacity-0');
+            }, 10);
         }
 
         function hidePopup() {
-            document.getElementById('popup-overlay').classList.add('hidden');
+            const popupContent = document.getElementById('popup-content');
+            popupContent.classList.remove('scale-100', 'opacity-100');
+            popupContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                document.getElementById('popup-overlay').classList.add('hidden');
+            }, 300);
         }
         
         // --- API CALLS ---
-
         async function apiCall(action, data) {
             showLoading(true);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
 
             try {
                 const response = await fetch(SCRIPT_URL, {
@@ -187,28 +195,18 @@
                     credentials: 'omit',
                     body: JSON.stringify({ action, ...data }),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    redirect: 'follow', // Let's try following the redirect
+                    redirect: 'follow',
                     signal: controller.signal
                 });
-
-                if (!response.ok && response.type !== 'opaque') { // Opaque responses don't have a status we can check
-                    throw new Error(`Network response was not ok: ${response.statusText}`);
-                }
-                
-                // For Apps Script, the redirect often means we can't read the response directly.
-                // We'll trust the script to handle errors and attempt to parse what we get.
+                if (!response.ok) throw new Error(`Network response error: ${response.statusText}`);
                 const result = await response.json();
                 return result;
             } catch (error) {
                 console.error("API Call Error:", error);
-                if (error.name === 'AbortError') {
-                    return { status: 'error', message: 'הבקשה נמשכה זמן רב מדי. בדוק את חיבור האינטרנט שלך.' };
-                }
-                 // This error often happens if the response is not valid JSON, which can happen with Apps Script redirects
-                if (error instanceof SyntaxError) {
-                    return { status: 'error', message: 'תשובה לא תקינה מהשרת. ודא שהסקריפט מפורסם עם גישה ל"כל אחד".' };
-                }
-                return { status: 'error', message: 'שגיאת תקשורת עם השרת.' };
+                let message = 'שגיאת תקשורת עם השרת.';
+                if (error.name === 'AbortError') message = 'הבקשה נמשכה זמן רב מדי.';
+                else if (error instanceof SyntaxError) message = 'תשובה לא תקינה מהשרת. ודא שהסקריפט מפורסם עם גישה ל"כל אחד".';
+                return { status: 'error', message: message };
             } finally {
                 clearTimeout(timeoutId);
                 showLoading(false);
@@ -216,60 +214,57 @@
         }
 
         // --- LOGIN LOGIC ---
-        
         async function handleLogin() {
             const idInput = document.getElementById('customer-id-input');
             const errorP = document.getElementById('login-error');
             const customerId = idInput.value.trim();
-
             if (!customerId) {
                 errorP.textContent = "יש להזין מספר לקוח.";
                 errorP.classList.remove('hidden');
                 return;
             }
-            
-            const result = await apiCall('login', { customerId: customerId });
+            const result = await apiCall('login', { customerId });
 
             if (result.status === 'success') {
                 loggedInUser = result.user;
                 errorP.classList.add('hidden');
-                
                 const hour = new Date().getHours();
                 const customerFirstName = (loggedInUser['שם לקוח'] || '').split(' ')[0];
-                if (hour >= 5 && hour < 12) {
-                    showPopup('welcomeMorning', customerFirstName);
-                } else if (hour >= 12 && hour < 18) {
-                    showPopup('welcomeAfternoon', customerFirstName);
-                } else {
-                    showPopup('welcomeEvening', customerFirstName);
-                }
+                let welcomeType = 'welcomeAfternoon';
+                if (hour >= 5 && hour < 12) welcomeType = 'welcomeMorning';
+                else if (hour >= 18 || hour < 5) welcomeType = 'welcomeEvening';
                 
                 document.getElementById('popup-close-btn').onclick = () => {
                     hidePopup();
-                    loadCatalog();
+                    loadCatalogAndStartRefresh(); // This is the corrected flow
                 };
-                
+                showPopup(welcomeType, customerFirstName);
             } else {
                 errorP.textContent = result.message || "מספר לקוח לא נמצא במערכת.";
                 errorP.classList.remove('hidden');
             }
         }
-
+        
         // --- CATALOG LOGIC ---
-
-        async function loadCatalog() {
-            showLoading(true);
+        function loadCatalogAndStartRefresh() {
+            loadCatalog(true); // Initial load with spinner
+            if (refreshInterval) clearInterval(refreshInterval); // Clear any previous intervals
+            refreshInterval = setInterval(() => loadCatalog(false), 60000); // Refresh every 60 seconds without spinner
+        }
+        
+        async function loadCatalog(showSpinner = false) {
+            if(showSpinner) showLoading(true);
             try {
                 const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
                 if (!response.ok) throw new Error('Failed to fetch catalog');
                 products = await response.json();
                 renderCatalog();
-                showScreen('catalog-screen');
+                if (showSpinner) showScreen('catalog-screen'); // Only switch screen on initial load
             } catch (error) {
                  console.error("Catalog Load Error:", error);
-                 alert('שגיאה בטעינת הקטלוג.');
+                 if (showSpinner) alert('שגיאה בטעינת הקטלוג.');
             } finally {
-                showLoading(false);
+                if(showSpinner) showLoading(false);
             }
         }
 
@@ -306,7 +301,6 @@
         }
 
         // --- CART LOGIC ---
-        
         function addToCart(productIndex) {
             const product = products[productIndex];
             const quantity = parseInt(document.getElementById('quantity-input').value, 10);
@@ -319,11 +313,11 @@
                     cart.push({ ...product, quantity });
                 }
                 updateCartUI();
-                showPopup('cartAddSuccess');
-                 document.getElementById('popup-close-btn').onclick = () => {
+                document.getElementById('popup-close-btn').onclick = () => {
                     hidePopup();
                     showScreen('catalog-screen');
                 };
+                showPopup('cartAddSuccess');
             }
         }
 
@@ -355,26 +349,16 @@
         }
 
         // --- ORDER SUBMISSION ---
-
         async function submitOrder() {
-            if (cart.length === 0) {
-                alert("עגלת הקניות ריקה.");
-                return;
-            }
-            
+            if (cart.length === 0) { return alert("עגלת הקניות ריקה."); }
             const deliveryAddress = document.getElementById('delivery-address-input').value;
-            const notes = document.getElementById('order-notes-input').value;
-            
-            if (!deliveryAddress) {
-                alert("יש להזין כתובת למשלוח.");
-                return;
-            }
+            if (!deliveryAddress) { return alert("יש להזין כתובת למשלוח."); }
 
             const orderDetails = {
                 customerNumber: loggedInUser['מספר לקוח'],
                 customerName: loggedInUser['שם לקוח'],
-                deliveryAddress: deliveryAddress,
-                notes: notes,
+                deliveryAddress,
+                notes: document.getElementById('order-notes-input').value,
                 itemNames: cart.map(item => item['שם מוצר']).join('||'),
                 itemQuantities: cart.map(item => item.quantity).join('||'),
             };
@@ -387,19 +371,30 @@
                 updateCartUI();
                 document.getElementById('delivery-address-input').value = '';
                 document.getElementById('order-notes-input').value = '';
-                showPopup('orderSuccess');
                 document.getElementById('popup-close-btn').onclick = () => {
                     hidePopup();
                     showScreen('catalog-screen');
                 };
+                showPopup('orderSuccess');
             } else {
                 alert("שגיאה בשליחת ההזמנה. נסה שוב.");
             }
         }
         
-        // --- INITIALIZATION ---
+        // --- INITIALIZATION & UTILITIES ---
+        function updateDateTime() {
+            const now = new Date();
+            const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('time').textContent = now.toLocaleTimeString('he-IL', timeOptions);
+            document.getElementById('date').textContent = now.toLocaleDateString('he-IL', dateOptions);
+        }
+
         window.onload = function() {
             showLoading(false); 
+            updateDateTime();
+            setInterval(updateDateTime, 1000); // Update time every second
+
             const urlParams = new URLSearchParams(window.location.search);
             const customerIdFromAdalo = urlParams.get('customerId');
             if (customerIdFromAdalo) {
@@ -407,7 +402,6 @@
                 handleLogin();
             }
         };
-
     </script>
 </body>
 </html>
