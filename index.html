@@ -191,10 +191,13 @@
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
+                    mode: 'cors',
                     body: JSON.stringify({ action, ...data }),
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain for GAS
+                    redirect: 'follow',
                     signal: controller.signal
                 });
+                
                 if (!response.ok) {
                    const errorText = await response.text();
                    throw new Error(`שגיאת רשת: ${response.status} ${response.statusText} - ${errorText}`);
