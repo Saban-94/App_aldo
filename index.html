@@ -58,26 +58,22 @@
         <!-- ===== Login Screen ===== -->
         <div id="login-screen" class="screen active-screen p-6 flex flex-col h-full bg-gray-50">
              <div class="text-center pt-8">
-                <img src="https://img.icons8.com/?size=100&id=106PofAoe3p7&format=png&color=000001" alt="אווטאר" class="h-20 w-20 rounded-full mx-auto p-1 border-4 border-blue-200 shadow-lg">
-                <h1 class="text-3xl font-bold text-gray-800 mt-4">כניסת לקוחות</h1>
-                <p class="text-gray-500 mb-6">ברוכים הבאים למערכת ההזמנות</p>
+                <img src="https://i.postimg.cc/CMsm57QV/image.png" alt="לוגו החברה" class="h-16 mx-auto rounded-lg shadow-md p-1 border">
+                 <div id="datetime" class="text-center mt-2">
+                    <p id="time" class="text-lg font-semibold text-gray-700"></p>
+                    <p id="date" class="text-sm text-gray-500"></p>
+                </div>
             </div>
             
             <div class="flex-grow flex flex-col justify-center">
+                 <img src="https://img.icons8.com/?size=100&id=106PofAoe3p7&format=png&color=000001" alt="אווטאר" class="h-20 w-20 rounded-full mx-auto p-1 border-4 border-blue-200 shadow-lg mb-4">
+                <h1 class="text-3xl font-bold text-center text-gray-800">כניסת לקוחות</h1>
+                <p class="text-center text-gray-500 mb-6">ברוכים הבאים למערכת ההזמנות</p>
                 <input type="number" id="customer-id-input" class="w-full p-4 border border-gray-300 rounded-lg text-center text-xl tracking-widest mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="הזן מספר לקוח...">
                 <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-300 text-lg shadow-lg">כניסה למערכת</button>
                 <p id="login-error" class="text-red-500 text-center mt-4 h-6"></p>
             </div>
             
-            <div class="text-center pb-4">
-                 <div class="flex justify-center items-center space-x-4 space-x-reverse">
-                    <img src="https://i.postimg.cc/CMsm57QV/image.png" alt="לוגו החברה" class="h-12">
-                    <div id="datetime" class="text-right">
-                        <p id="time" class="text-lg font-semibold text-gray-700"></p>
-                        <p id="date" class="text-sm text-gray-500"></p>
-                    </div>
-                </div>
-            </div>
         </div>
 
 
@@ -198,10 +194,9 @@
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors',
-                    credentials: 'omit',
                     body: JSON.stringify({ action, ...data }),
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    headers: { 'Content-Type': 'application/json' }, // Correct Content-Type for JSON
+                    signal: controller.signal
                 });
                 if (!response.ok) {
                    const errorText = await response.text();
@@ -236,22 +231,26 @@
             if (result.status === 'success') {
                 loggedInUser = result.user;
                 errorP.classList.add('hidden');
-                const customerFirstName = (loggedInUser['שם לקוח'] || '').split(' ')[0];
-
-                document.getElementById('popup-close-btn').onclick = () => {
-                    hidePopup();
-                    const hour = new Date().getHours();
-                    let welcomeType = 'welcomeAfternoon';
-                    if (hour >= 5 && hour < 12) welcomeType = 'welcomeMorning';
-                    else if (hour >= 18 || hour < 5) welcomeType = 'welcomeEvening';
-                    
-                    document.getElementById('popup-close-btn').onclick = () => {
-                        hidePopup();
-                        loadCatalogAndStartRefresh(); 
-                    };
-                    showPopup(welcomeType, customerFirstName);
-                };
+                
                 showPopup('loginSuccess');
+                
+                setTimeout(() => {
+                    hidePopup();
+                    setTimeout(() => {
+                        const hour = new Date().getHours();
+                        const customerFirstName = (loggedInUser['שם לקוח'] || '').split(' ')[0];
+                        let welcomeType = 'welcomeAfternoon';
+                        if (hour >= 5 && hour < 12) welcomeType = 'welcomeMorning';
+                        else if (hour >= 18 || hour < 5) welcomeType = 'welcomeEvening';
+                        
+                        document.getElementById('popup-close-btn').onclick = () => {
+                            hidePopup();
+                            loadCatalogAndStartRefresh(); 
+                        };
+                        showPopup(welcomeType, customerFirstName);
+                    }, 300);
+                }, 1500);
+
             } else {
                 errorP.textContent = result.message || "מספר לקוח לא נמצא במערכת.";
                 errorP.classList.remove('hidden');
@@ -268,7 +267,11 @@
         async function loadCatalog(showSpinner = false) {
             if(showSpinner) showLoading(true);
             try {
-                const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
                 if (!response.ok) throw new Error('Failed to fetch catalog');
                 products = await response.json();
                 renderCatalog();
@@ -407,10 +410,6 @@
             showLoading(false); 
             updateDateTime();
             setInterval(updateDateTime, 1000); 
-
-            // Add typing effect to placeholder
-            const input = document.getElementById('customer-id-input');
-            input.classList.add('typing-placeholder');
 
             const urlParams = new URLSearchParams(window.location.search);
             const customerIdFromAdalo = urlParams.get('customerId');
