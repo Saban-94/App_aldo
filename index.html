@@ -78,7 +78,7 @@
         </div>
         
         <!-- ===== Loading Spinner ===== -->
-        <div id="loading-spinner" class="screen fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+        <div id="loading-spinner" class="screen fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center" style="display: none;">
             <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
         </div>
 
@@ -114,17 +114,14 @@
         async function apiCall(action, data) {
             showLoading(true);
             try {
-                // Apps Script web apps handle CORS, so a direct POST is fine.
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'cors',
                     credentials: 'omit',
                     headers: {
-                      // We send as text/plain because Apps Script has issues parsing application/json with simple POSTs
                       'Content-Type': 'text/plain;charset=utf-8', 
                     },
-                    body: JSON.stringify({ action, ...data }),
-                    redirect: 'follow'
+                    body: JSON.stringify({ action, ...data })
                 });
                 if (!response.ok) {
                     throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -168,8 +165,7 @@
 
         async function loadCatalog() {
             showLoading(true);
-            // We use a simple GET request for fetching public catalog data
-             try {
+            try {
                 const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
                 if (!response.ok) throw new Error('Failed to fetch catalog');
                 products = await response.json();
@@ -222,7 +218,6 @@
             const quantity = parseInt(document.getElementById('quantity-input').value, 10);
             
             if (quantity > 0) {
-                // Check if product already in cart
                 const existingItem = cart.find(item => item['מק"ט'] === product['מק"ט']);
                 if (existingItem) {
                     existingItem.quantity += quantity;
@@ -230,7 +225,7 @@
                     cart.push({ ...product, quantity });
                 }
                 updateCartUI();
-                showScreen('catalog-screen'); // Go back to catalog after adding
+                showScreen('catalog-screen');
             }
         }
 
@@ -289,10 +284,7 @@
             const result = await apiCall('submitMaterialOrder', { orderDetails });
             
             if (result.status === 'success' && result.whatsappUrl) {
-                // Open WhatsApp link
                 window.open(result.whatsappUrl, '_blank');
-                
-                // Clear cart and show success
                 cart = [];
                 updateCartUI();
                 document.getElementById('delivery-address-input').value = '';
@@ -305,8 +297,8 @@
         }
         
         // --- INITIALIZATION ---
-        // This is where you might handle parameters from Adalo's Web View
         window.onload = function() {
+            showLoading(false); // Make sure spinner is hidden on load
             const urlParams = new URLSearchParams(window.location.search);
             const phoneFromAdalo = urlParams.get('phone');
             if (phoneFromAdalo) {
