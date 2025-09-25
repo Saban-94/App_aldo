@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הזמנות V6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Assistant', sans-serif; }
+        .screen { display: none; }
+        .active-screen { display: block; }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app-container" class="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+
+        <!-- ===== Login Screen ===== -->
+        <div id="login-screen" class="screen active-screen p-6 flex flex-col justify-center h-screen">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">ברוכים הבאים</h1>
+            <p class="text-center text-gray-500 mb-8">אנא הזן מספר טלפון לכניסה</p>
+            <input type="tel" id="phone-input" class="w-full p-3 border border-gray-300 rounded-lg text-center text-lg tracking-widest mb-4" placeholder="050-1234567">
+            <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-300">כניסה</button>
+            <p id="login-error" class="text-red-500 text-center mt-4 hidden"></p>
+        </div>
+
+        <!-- ===== Catalog Screen ===== -->
+        <div id="catalog-screen" class="screen p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-2xl font-bold text-gray-800">קטלוג מוצרים</h1>
+                <div class="relative">
+                    <button onclick="showScreen('cart-screen')" class="p-2 rounded-full hover:bg-gray-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        <span id="cart-badge" class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+                    </button>
+                </div>
+            </div>
+            <div id="catalog-grid" class="grid grid-cols-2 gap-4">
+                <!-- Products will be injected here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- ===== Product Detail Screen ===== -->
+        <div id="product-detail-screen" class="screen">
+            <div class="p-4">
+                <button onclick="showScreen('catalog-screen')" class="mb-4 text-blue-600">&larr; חזרה לקטלוג</button>
+            </div>
+            <div id="product-detail-content">
+                <!-- Product details will be injected here -->
+            </div>
+            <div class="p-4 mt-4 bg-gray-50">
+                 <label for="quantity-input" class="block text-sm font-medium text-gray-700 mb-1">כמות</label>
+                 <input type="number" id="quantity-input" value="1" min="1" class="w-full p-2 border border-gray-300 rounded-md mb-4">
+                 <button id="add-to-cart-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">הוסף לעגלה</button>
+            </div>
+        </div>
+        
+        <!-- ===== Cart Screen ===== -->
+        <div id="cart-screen" class="screen p-4">
+            <div class="flex items-center mb-4">
+                 <button onclick="showScreen('catalog-screen')" class="p-2 text-blue-600">&larr; חזרה לקטלוג</button>
+                 <h1 class="text-2xl font-bold text-gray-800 mr-2">עגלת קניות</h1>
+            </div>
+            <div id="cart-items-container" class="mb-4">
+                <!-- Cart items will be injected here -->
+            </div>
+             <div class="space-y-4">
+                <input type="text" id="delivery-address-input" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="כתובת למשלוח">
+                <textarea id="order-notes-input" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="הערות להזמנה"></textarea>
+                <button onclick="submitOrder()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition">אישור ושליחת הזמנה לוואטסאפ</button>
+            </div>
+        </div>
+        
+        <!-- ===== Loading Spinner ===== -->
+        <div id="loading-spinner" class="screen fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcvXNWoWp11Y5nZbtFTcPKbx2ip7N-yy3tGZuu1IE8p9BeP2E3at2RqvkXYAh8AdaJ/exec"; // !!! החלף לכתובת הסקריפט שלך !!!
+        let loggedInUser = null;
+        let products = [];
+        let cart = [];
+
+        // --- CORE FUNCTIONS ---
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active-screen');
+            });
+            document.getElementById(screenId).classList.add('active-screen');
+        }
+        
+        function showLoading(isLoading) {
+            const spinner = document.getElementById('loading-spinner');
+            if (isLoading) {
+                spinner.style.display = 'flex';
+            } else {
+                spinner.style.display = 'none';
+            }
+        }
+        
+        // --- API CALLS ---
+
+        async function apiCall(action, data) {
+            showLoading(true);
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'cors', // Important for cross-origin requests
+                    credentials: 'omit',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain for Apps Script simple POST
+                    body: JSON.stringify({ action, ...data })
+                });
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error("API Call Error:", error);
+                return { status: 'error', message: 'Failed to communicate with server.' };
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // --- LOGIN LOGIC ---
+        
+        async function handleLogin() {
+            const phoneInput = document.getElementById('phone-input');
+            const errorP = document.getElementById('login-error');
+            const phone = phoneInput.value.trim();
+
+            if (!phone) {
+                errorP.textContent = "יש להזין מספר טלפון.";
+                errorP.classList.remove('hidden');
+                return;
+            }
+            
+            const result = await apiCall('login', { phone });
+
+            if (result.status === 'success') {
+                loggedInUser = result.user;
+                errorP.classList.add('hidden');
+                loadCatalog();
+            } else {
+                errorP.textContent = "מספר טלפון לא נמצא במערכת.";
+                errorP.classList.remove('hidden');
+            }
+        }
+
+        // --- CATALOG LOGIC ---
+
+        async function loadCatalog() {
+            showLoading(true);
+            // We use GET for fetching catalog data as it's simpler
+             try {
+                const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
+                if (!response.ok) throw new Error('Failed to fetch catalog');
+                products = await response.json();
+                renderCatalog();
+                showScreen('catalog-screen');
+            } catch (error) {
+                 console.error("Catalog Load Error:", error);
+                 alert('שגיאה בטעינת הקטלוג.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderCatalog() {
+            const grid = document.getElementById('catalog-grid');
+            grid.innerHTML = '';
+            products.forEach((product, index) => {
+                const card = document.createElement('div');
+                card.className = 'border rounded-lg p-2 shadow-sm cursor-pointer';
+                card.onclick = () => showProductDetails(index);
+                card.innerHTML = `
+                    <img src="${product['תמונת מוצר']}" alt="${product['שם מוצר']}" class="w-full h-24 object-cover rounded-md mb-2" onerror="this.src='https://placehold.co/400x300/e0e0e0/777?text=Image'">
+                    <h3 class="font-bold text-sm text-gray-800 truncate">${product['שם מוצר']}</h3>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        
+        function showProductDetails(productIndex) {
+            const product = products[productIndex];
+            const contentDiv = document.getElementById('product-detail-content');
+            
+            contentDiv.innerHTML = `
+                <img src="${product['תמונת מוצר']}" alt="${product['שם מוצר']}" class="w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/e0e0e0/777?text=Image'">
+                <div class="p-4">
+                    <h2 class="text-2xl font-bold mb-2">${product['שם מוצר']}</h2>
+                    <p class="text-gray-600">${product['מפרט מוצר']}</p>
+                </div>
+            `;
+            
+            document.getElementById('add-to-cart-btn').onclick = () => addToCart(productIndex);
+            document.getElementById('quantity-input').value = 1;
+            showScreen('product-detail-screen');
+        }
+
+        // --- CART LOGIC ---
+        
+        function addToCart(productIndex) {
+            const product = products[productIndex];
+            const quantity = parseInt(document.getElementById('quantity-input').value, 10);
+            
+            if (quantity > 0) {
+                // Check if product already in cart
+                const existingItem = cart.find(item => item['מק"ט'] === product['מק"ט']);
+                if (existingItem) {
+                    existingItem.quantity += quantity;
+                } else {
+                    cart.push({ ...product, quantity });
+                }
+                updateCartUI();
+                showScreen('catalog-screen'); // Go back to catalog after adding
+            }
+        }
+
+        function updateCartUI() {
+            document.getElementById('cart-badge').textContent = cart.length;
+            const container = document.getElementById('cart-items-container');
+            container.innerHTML = '';
+            if (cart.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500">עגלת הקניות ריקה</p>';
+                return;
+            }
+            cart.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex justify-between items-center border-b py-2';
+                itemDiv.innerHTML = `
+                    <div>
+                        <p class="font-bold">${item['שם מוצר']}</p>
+                        <p class="text-sm text-gray-600">כמות: ${item.quantity}</p>
+                    </div>
+                    <button onclick="removeFromCart(${index})" class="text-red-500">מחק</button>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+        
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartUI();
+        }
+
+        // --- ORDER SUBMISSION ---
+
+        async function submitOrder() {
+            if (cart.length === 0) {
+                alert("עגלת הקניות ריקה.");
+                return;
+            }
+            
+            const deliveryAddress = document.getElementById('delivery-address-input').value;
+            const notes = document.getElementById('order-notes-input').value;
+            
+            if (!deliveryAddress) {
+                alert("יש להזין כתובת למשלוח.");
+                return;
+            }
+
+            const orderDetails = {
+                customerNumber: loggedInUser['מספר לקוח'],
+                customerName: loggedInUser['שם לקוח'],
+                deliveryAddress: deliveryAddress,
+                notes: notes,
+                itemNames: cart.map(item => item['שם מוצר']).join('||'),
+                itemQuantities: cart.map(item => item.quantity).join('||'),
+            };
+
+            const result = await apiCall('submitMaterialOrder', { orderDetails });
+            
+            if (result.status === 'success' && result.whatsappUrl) {
+                // Open WhatsApp link
+                window.open(result.whatsappUrl, '_blank');
+                
+                // Clear cart and show success
+                cart = [];
+                updateCartUI();
+                document.getElementById('delivery-address-input').value = '';
+                document.getElementById('order-notes-input').value = '';
+                alert("ההזמנה נשלחה בהצלחה!");
+                showScreen('catalog-screen');
+            } else {
+                alert("שגיאה בשליחת ההזמנה. נסה שוב.");
+            }
+        }
+        
+        // --- INITIALIZATION ---
+        // This is where you might handle parameters from Adalo's Web View
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const phoneFromAdalo = urlParams.get('phone');
+            if (phoneFromAdalo) {
+                document.getElementById('phone-input').value = phoneFromAdalo;
+                handleLogin();
+            }
+        };
+
+    </script>
+</body>
+</html>
