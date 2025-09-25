@@ -181,33 +181,32 @@
             const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
             try {
-                // The body is stringified and sent as text/plain, which Apps Script expects for e.postData.contents
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors', // Required for cross-origin requests
+                    mode: 'cors',
                     credentials: 'omit',
                     body: JSON.stringify({ action, ...data }),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow', // Let's try following the redirect
                     signal: controller.signal
                 });
-                
-                // Clear redirect handling as it can cause issues
-                if (response.type === 'opaque' || response.redirected) {
-                     console.warn("Opaque or redirected response received. Check Apps Script deployment permissions.");
-                     // In this case, we can't read the response body, so we assume it might have worked
-                     // but we can't get data back. This is a common issue with Apps Script permissions.
-                     return { status: 'error', message: 'תשובה לא תקינה מהשרת. ודא שהסקריפט מפורסם עם גישה ל"כל אחד".' };
-                }
 
-                if (!response.ok) {
+                if (!response.ok && response.type !== 'opaque') { // Opaque responses don't have a status we can check
                     throw new Error(`Network response was not ok: ${response.statusText}`);
                 }
+                
+                // For Apps Script, the redirect often means we can't read the response directly.
+                // We'll trust the script to handle errors and attempt to parse what we get.
                 const result = await response.json();
                 return result;
             } catch (error) {
                 console.error("API Call Error:", error);
                 if (error.name === 'AbortError') {
                     return { status: 'error', message: 'הבקשה נמשכה זמן רב מדי. בדוק את חיבור האינטרנט שלך.' };
+                }
+                 // This error often happens if the response is not valid JSON, which can happen with Apps Script redirects
+                if (error instanceof SyntaxError) {
+                    return { status: 'error', message: 'תשובה לא תקינה מהשרת. ודא שהסקריפט מפורסם עם גישה ל"כל אחד".' };
                 }
                 return { status: 'error', message: 'שגיאת תקשורת עם השרת.' };
             } finally {
@@ -235,7 +234,6 @@
                 loggedInUser = result.user;
                 errorP.classList.add('hidden');
                 
-                // Show welcome popup based on time of day
                 const hour = new Date().getHours();
                 const customerFirstName = (loggedInUser['שם לקוח'] || '').split(' ')[0];
                 if (hour >= 5 && hour < 12) {
@@ -246,7 +244,6 @@
                     showPopup('welcomeEvening', customerFirstName);
                 }
                 
-                // Set the close button to also load the catalog
                 document.getElementById('popup-close-btn').onclick = () => {
                     hidePopup();
                     loadCatalog();
@@ -263,7 +260,6 @@
         async function loadCatalog() {
             showLoading(true);
             try {
-                // Using GET for catalog is simpler
                 const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
                 if (!response.ok) throw new Error('Failed to fetch catalog');
                 products = await response.json();
