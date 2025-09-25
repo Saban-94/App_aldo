@@ -25,15 +25,18 @@
         #popup-overlay.hidden, #loading-spinner.hidden { display: none; }
         #popup-overlay, #loading-spinner { display: flex; }
         /* Typing effect for placeholder */
-        .typing-placeholder::placeholder {
-            animation: typing 3s steps(30, end) infinite, blink-caret .75s step-end infinite;
+        #customer-id-input::placeholder {
+            animation: typing 3.5s steps(40, end) infinite, blink-caret .75s step-end infinite;
             white-space: nowrap;
             overflow: hidden;
-            border-right: .15em solid orange;
+            border-right: .15em solid orange; /* The cursor */
+            width: 0;
         }
         @keyframes typing {
-            from { width: 0 }
-            to { width: 100% }
+          from { width: 0 }
+          to { width: 65% }
+          50% { width: 65% }
+          100% {width: 0}
         }
         @keyframes blink-caret {
             from, to { border-color: transparent }
@@ -75,7 +78,8 @@
             </div>
         </div>
 
-        <!-- ===== Other Screens remain the same... ===== -->
+
+        <!-- ===== Catalog Screen ===== -->
         <div id="catalog-screen" class="screen p-4 overflow-y-auto">
              <div class="flex justify-between items-center mb-4 sticky top-0 bg-white py-2 z-10">
                 <h1 class="text-2xl font-bold text-gray-800">קטלוג מוצרים</h1>
@@ -167,7 +171,7 @@
             document.getElementById('popup-title').textContent = `${popup.title} ${userName}`;
             document.getElementById('popup-message').textContent = popup.message;
             document.getElementById('popup-overlay').classList.remove('hidden');
-            setTimeout(() => { // For animation
+            setTimeout(() => {
                 document.getElementById('popup-content').classList.add('scale-100', 'opacity-100');
                 document.getElementById('popup-content').classList.remove('scale-95', 'opacity-0');
             }, 10);
@@ -198,7 +202,9 @@
                     redirect: 'follow',
                     signal: controller.signal
                 });
-                if (!response.ok) throw new Error(`Network response error: ${response.statusText}`);
+                if (!response.ok && response.type !== 'opaque') {
+                    throw new Error(`Network response error: ${response.statusText}`);
+                }
                 const result = await response.json();
                 return result;
             } catch (error) {
@@ -236,7 +242,7 @@
                 
                 document.getElementById('popup-close-btn').onclick = () => {
                     hidePopup();
-                    loadCatalogAndStartRefresh(); // This is the corrected flow
+                    loadCatalogAndStartRefresh(); 
                 };
                 showPopup(welcomeType, customerFirstName);
             } else {
@@ -247,9 +253,9 @@
         
         // --- CATALOG LOGIC ---
         function loadCatalogAndStartRefresh() {
-            loadCatalog(true); // Initial load with spinner
-            if (refreshInterval) clearInterval(refreshInterval); // Clear any previous intervals
-            refreshInterval = setInterval(() => loadCatalog(false), 60000); // Refresh every 60 seconds without spinner
+            loadCatalog(true); 
+            if (refreshInterval) clearInterval(refreshInterval); 
+            refreshInterval = setInterval(() => loadCatalog(false), 60000); 
         }
         
         async function loadCatalog(showSpinner = false) {
@@ -259,7 +265,7 @@
                 if (!response.ok) throw new Error('Failed to fetch catalog');
                 products = await response.json();
                 renderCatalog();
-                if (showSpinner) showScreen('catalog-screen'); // Only switch screen on initial load
+                if (showSpinner) showScreen('catalog-screen');
             } catch (error) {
                  console.error("Catalog Load Error:", error);
                  if (showSpinner) alert('שגיאה בטעינת הקטלוג.');
@@ -393,7 +399,11 @@
         window.onload = function() {
             showLoading(false); 
             updateDateTime();
-            setInterval(updateDateTime, 1000); // Update time every second
+            setInterval(updateDateTime, 1000); 
+
+            // Add typing effect to placeholder
+            const input = document.getElementById('customer-id-input');
+            input.classList.add('typing-placeholder');
 
             const urlParams = new URLSearchParams(window.location.search);
             const customerIdFromAdalo = urlParams.get('customerId');
