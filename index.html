@@ -10,7 +10,9 @@
         body { font-family: 'Assistant', sans-serif; }
         .screen { display: none; }
         .active-screen { display: block; }
-        /* Custom scrollbar for better aesthetics */
+        #popup-overlay.hidden, #loading-spinner.hidden { display: none; }
+        #popup-overlay, #loading-spinner { display: flex; }
+        /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
@@ -19,16 +21,30 @@
 </head>
 <body class="bg-gray-100">
 
-    <div id="app-container" class="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+    <div id="app-container" class="max-w-md mx-auto bg-white min-h-screen shadow-lg relative">
 
         <!-- ===== Login Screen ===== -->
-        <div id="login-screen" class="screen active-screen p-6 flex flex-col justify-center h-screen">
-            <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">ברוכים הבאים</h1>
-            <p class="text-center text-gray-500 mb-8">אנא הזן מספר לקוח לכניסה</p>
-            <input type="number" id="customer-id-input" class="w-full p-3 border border-gray-300 rounded-lg text-center text-lg tracking-widest mb-4" placeholder="הזן מספר לקוח">
-            <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-300">כניסה</button>
-            <p id="login-error" class="text-red-500 text-center mt-4 hidden"></p>
+        <div id="login-screen" class="screen active-screen p-6 flex flex-col justify-between h-screen bg-gray-50">
+            <div>
+                <div class="p-2 border-2 border-gray-200 rounded-lg inline-block mx-auto block w-fit mb-8 shadow-md">
+                    <img src="https://i.postimg.cc/CMsm57QV/image.png" alt="לוגו החברה" class="h-16 mx-auto">
+                </div>
+                <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">כניסת לקוחות</h1>
+                <p class="text-center text-gray-500 mb-8">אנא הזן את מספר הלקוח שלך</p>
+            </div>
+            
+            <div class="flex-grow flex flex-col justify-center">
+                <input type="number" id="customer-id-input" class="w-full p-4 border border-gray-300 rounded-lg text-center text-xl tracking-widest mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="הזן מספר לקוח">
+                <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-300 text-lg shadow-lg">כניסה למערכת</button>
+                <p id="login-error" class="text-red-500 text-center mt-4 hidden h-6"></p>
+            </div>
+            
+            <div class="text-center mt-auto">
+                <img src="https://img.icons8.com/?size=100&id=106PofAoe3p7&format=png&color=000001" alt="אווטאר" class="h-16 w-16 rounded-full mx-auto p-1 border-2 border-blue-200 shadow-sm">
+                <p class="text-xs text-gray-400 mt-2">מערכת הזמנות V6</p>
+            </div>
         </div>
+
 
         <!-- ===== Catalog Screen ===== -->
         <div id="catalog-screen" class="screen p-4">
@@ -77,9 +93,19 @@
             </div>
         </div>
         
-        <!-- ===== Loading Spinner ===== -->
-        <div id="loading-spinner" class="screen fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center" style="display: none;">
+        <!-- ===== Global Loading Spinner ===== -->
+        <div id="loading-spinner" class="hidden fixed inset-0 bg-white bg-opacity-75 items-center justify-center z-50">
             <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
+        </div>
+
+        <!-- ===== Global Popup (Modal) ===== -->
+        <div id="popup-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-40 p-4">
+            <div id="popup-content" class="bg-white rounded-lg shadow-2xl p-6 text-center max-w-sm w-full">
+                <div id="popup-icon" class="text-5xl mb-4"></div>
+                <h2 id="popup-title" class="text-2xl font-bold text-gray-800 mb-2"></h2>
+                <p id="popup-message" class="text-gray-600 mb-6"></p>
+                <button id="popup-close-btn" onclick="hidePopup()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition">הבנתי</button>
+            </div>
         </div>
 
     </div>
@@ -91,7 +117,36 @@
         let products = [];
         let cart = [];
 
-        // --- CORE FUNCTIONS ---
+        // --- POPUP MESSAGE LIBRARY ---
+        const popupMessages = {
+            welcomeMorning: {
+                icon: '☀️',
+                title: 'בוקר טוב',
+                message: 'כיף לראות אותך! מוכן להתחיל את היום?'
+            },
+            welcomeAfternoon: {
+                icon: '👋',
+                title: 'צהריים טובים',
+                message: 'מקווים שהיום שלך הולך מצוין!'
+            },
+            welcomeEvening: {
+                icon: '🌙',
+                title: 'ערב טוב',
+                message: 'שמחים שאתה כבר מארגן את ההזמנות למחר. לנו זה נותן זמן להתארגן ואתה תקבל הכל במועד.'
+            },
+            orderSuccess: {
+                icon: '✅',
+                title: 'ההזמנה נשלחה!',
+                message: 'ההזמנה שלך התקבלה ונשלחה אלינו לוואטסאפ. ניצור קשר בהקדם.'
+            },
+             cartAddSuccess: {
+                icon: '🛒',
+                title: 'נוסף לעגלה',
+                message: 'המוצר נוסף לעגלה בהצלחה.'
+            },
+        };
+
+        // --- CORE UI FUNCTIONS ---
 
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(screen => {
@@ -101,12 +156,21 @@
         }
         
         function showLoading(isLoading) {
-            const spinner = document.getElementById('loading-spinner');
-            if (isLoading) {
-                spinner.style.display = 'flex';
-            } else {
-                spinner.style.display = 'none';
-            }
+            document.getElementById('loading-spinner').classList.toggle('hidden', !isLoading);
+        }
+
+        function showPopup(type, userName = '') {
+            const popup = popupMessages[type];
+            if (!popup) return;
+
+            document.getElementById('popup-icon').textContent = popup.icon;
+            document.getElementById('popup-title').textContent = `${popup.title} ${userName}`;
+            document.getElementById('popup-message').textContent = popup.message;
+            document.getElementById('popup-overlay').classList.remove('hidden');
+        }
+
+        function hidePopup() {
+            document.getElementById('popup-overlay').classList.add('hidden');
         }
         
         // --- API CALLS ---
@@ -117,16 +181,24 @@
             const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
             try {
+                // The body is stringified and sent as text/plain, which Apps Script expects for e.postData.contents
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors',
+                    mode: 'cors', // Required for cross-origin requests
                     credentials: 'omit',
-                    headers: {
-                      'Content-Type': 'text/plain;charset=utf-8', 
-                    },
                     body: JSON.stringify({ action, ...data }),
-                    signal: controller.signal // Connect the timeout controller
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    signal: controller.signal
                 });
+                
+                // Clear redirect handling as it can cause issues
+                if (response.type === 'opaque' || response.redirected) {
+                     console.warn("Opaque or redirected response received. Check Apps Script deployment permissions.");
+                     // In this case, we can't read the response body, so we assume it might have worked
+                     // but we can't get data back. This is a common issue with Apps Script permissions.
+                     return { status: 'error', message: 'תשובה לא תקינה מהשרת. ודא שהסקריפט מפורסם עם גישה ל"כל אחד".' };
+                }
+
                 if (!response.ok) {
                     throw new Error(`Network response was not ok: ${response.statusText}`);
                 }
@@ -135,11 +207,11 @@
             } catch (error) {
                 console.error("API Call Error:", error);
                 if (error.name === 'AbortError') {
-                    return { status: 'error', message: 'הבקשה נמשכה זמן רב מדי.' };
+                    return { status: 'error', message: 'הבקשה נמשכה זמן רב מדי. בדוק את חיבור האינטרנט שלך.' };
                 }
                 return { status: 'error', message: 'שגיאת תקשורת עם השרת.' };
             } finally {
-                clearTimeout(timeoutId); // Clear the timeout
+                clearTimeout(timeoutId);
                 showLoading(false);
             }
         }
@@ -162,7 +234,24 @@
             if (result.status === 'success') {
                 loggedInUser = result.user;
                 errorP.classList.add('hidden');
-                loadCatalog();
+                
+                // Show welcome popup based on time of day
+                const hour = new Date().getHours();
+                const customerFirstName = (loggedInUser['שם לקוח'] || '').split(' ')[0];
+                if (hour >= 5 && hour < 12) {
+                    showPopup('welcomeMorning', customerFirstName);
+                } else if (hour >= 12 && hour < 18) {
+                    showPopup('welcomeAfternoon', customerFirstName);
+                } else {
+                    showPopup('welcomeEvening', customerFirstName);
+                }
+                
+                // Set the close button to also load the catalog
+                document.getElementById('popup-close-btn').onclick = () => {
+                    hidePopup();
+                    loadCatalog();
+                };
+                
             } else {
                 errorP.textContent = result.message || "מספר לקוח לא נמצא במערכת.";
                 errorP.classList.remove('hidden');
@@ -174,6 +263,7 @@
         async function loadCatalog() {
             showLoading(true);
             try {
+                // Using GET for catalog is simpler
                 const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
                 if (!response.ok) throw new Error('Failed to fetch catalog');
                 products = await response.json();
@@ -192,7 +282,7 @@
             grid.innerHTML = '';
             products.forEach((product, index) => {
                 const card = document.createElement('div');
-                card.className = 'border rounded-lg p-2 shadow-sm cursor-pointer';
+                card.className = 'border rounded-lg p-2 shadow-sm cursor-pointer hover:shadow-md transition';
                 card.onclick = () => showProductDetails(index);
                 card.innerHTML = `
                     <img src="${product['תמונת מוצר']}" alt="${product['שם מוצר']}" class="w-full h-24 object-cover rounded-md mb-2" onerror="this.src='https://placehold.co/400x300/e0e0e0/777?text=Image'">
@@ -233,7 +323,11 @@
                     cart.push({ ...product, quantity });
                 }
                 updateCartUI();
-                showScreen('catalog-screen');
+                showPopup('cartAddSuccess');
+                 document.getElementById('popup-close-btn').onclick = () => {
+                    hidePopup();
+                    showScreen('catalog-screen');
+                };
             }
         }
 
@@ -253,7 +347,7 @@
                         <p class="font-bold">${item['שם מוצר']}</p>
                         <p class="text-sm text-gray-600">כמות: ${item.quantity}</p>
                     </div>
-                    <button onclick="removeFromCart(${index})" class="text-red-500">מחק</button>
+                    <button onclick="removeFromCart(${index})" class="text-red-500 hover:text-red-700">מחק</button>
                 `;
                 container.appendChild(itemDiv);
             });
@@ -297,8 +391,11 @@
                 updateCartUI();
                 document.getElementById('delivery-address-input').value = '';
                 document.getElementById('order-notes-input').value = '';
-                alert("ההזמנה נשלחה בהצלחה!");
-                showScreen('catalog-screen');
+                showPopup('orderSuccess');
+                document.getElementById('popup-close-btn').onclick = () => {
+                    hidePopup();
+                    showScreen('catalog-screen');
+                };
             } else {
                 alert("שגיאה בשליחת ההזמנה. נסה שוב.");
             }
@@ -306,7 +403,7 @@
         
         // --- INITIALIZATION ---
         window.onload = function() {
-            showLoading(false); // Make sure spinner is hidden on load
+            showLoading(false); 
             const urlParams = new URLSearchParams(window.location.search);
             const customerIdFromAdalo = urlParams.get('customerId');
             if (customerIdFromAdalo) {
