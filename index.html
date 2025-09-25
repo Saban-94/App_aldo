@@ -113,6 +113,9 @@
 
         async function apiCall(action, data) {
             showLoading(true);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
@@ -121,7 +124,8 @@
                     headers: {
                       'Content-Type': 'text/plain;charset=utf-8', 
                     },
-                    body: JSON.stringify({ action, ...data })
+                    body: JSON.stringify({ action, ...data }),
+                    signal: controller.signal // Connect the timeout controller
                 });
                 if (!response.ok) {
                     throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -130,8 +134,12 @@
                 return result;
             } catch (error) {
                 console.error("API Call Error:", error);
-                return { status: 'error', message: 'Failed to communicate with server.' };
+                if (error.name === 'AbortError') {
+                    return { status: 'error', message: 'הבקשה נמשכה זמן רב מדי.' };
+                }
+                return { status: 'error', message: 'שגיאת תקשורת עם השרת.' };
             } finally {
+                clearTimeout(timeoutId); // Clear the timeout
                 showLoading(false);
             }
         }
@@ -156,7 +164,7 @@
                 errorP.classList.add('hidden');
                 loadCatalog();
             } else {
-                errorP.textContent = "מספר טלפון לא נמצא במערכת.";
+                errorP.textContent = result.message || "מספר טלפון לא נמצא במערכת.";
                 errorP.classList.remove('hidden');
             }
         }
