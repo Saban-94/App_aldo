@@ -9,9 +9,8 @@
     <style>
         body { font-family: 'Assistant', sans-serif; overflow-y: hidden; }
         .screen {
-            position: absolute;
-            width: 100%;
-            height: 100%;
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
             transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
             opacity: 0;
             transform: scale(0.98);
@@ -24,24 +23,27 @@
         }
         #popup-overlay.hidden, #loading-spinner.hidden { display: none; }
         #popup-overlay, #loading-spinner { display: flex; }
+        
         /* Typing effect for placeholder */
         #customer-id-input::placeholder {
             animation: typing 3.5s steps(40, end) infinite, blink-caret .75s step-end infinite;
-            white-space: nowrap;
-            overflow: hidden;
-            border-right: .15em solid orange; /* The cursor */
-            width: 0;
+            white-space: nowrap; overflow: hidden; border-right: .15em solid orange; width: 0;
         }
-        @keyframes typing {
-          from { width: 0 }
-          to { width: 65% }
-          50% { width: 65% }
-          100% {width: 0}
+        @keyframes typing { 
+          from { width: 0 } to { width: 65% } 50% { width: 65% } 100% {width: 0} 
         }
-        @keyframes blink-caret {
-            from, to { border-color: transparent }
-            50% { border-color: orange; }
+        @keyframes blink-caret { 
+          from, to { border-color: transparent } 50% { border-color: orange; } 
         }
+
+        /* Animated Checkmark */
+        .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 2; stroke-miterlimit: 10; stroke: #4caf50; fill: none; animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
+        .checkmark { width: 56px; height: 56px; border-radius: 50%; display: block; stroke-width: 2; stroke: #fff; stroke-miterlimit: 10; margin: 10% auto; box-shadow: inset 0px 0px 0px #4caf50; animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both; }
+        .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards; }
+        @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+        @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+        @keyframes fill { 100% { box-shadow: inset 0px 0px 0px 30px #4caf50; } }
+
         /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -55,7 +57,7 @@
 
         <!-- ===== Login Screen ===== -->
         <div id="login-screen" class="screen active-screen p-6 flex flex-col h-full bg-gray-50">
-            <div class="text-center pt-8">
+             <div class="text-center pt-8">
                 <img src="https://img.icons8.com/?size=100&id=106PofAoe3p7&format=png&color=000001" alt="אווטאר" class="h-20 w-20 rounded-full mx-auto p-1 border-4 border-blue-200 shadow-lg">
                 <h1 class="text-3xl font-bold text-gray-800 mt-4">כניסת לקוחות</h1>
                 <p class="text-gray-500 mb-6">ברוכים הבאים למערכת ההזמנות</p>
@@ -68,7 +70,7 @@
             </div>
             
             <div class="text-center pb-4">
-                 <div class="flex justify-center items-center space-x-4">
+                 <div class="flex justify-center items-center space-x-4 space-x-reverse">
                     <img src="https://i.postimg.cc/CMsm57QV/image.png" alt="לוגו החברה" class="h-12">
                     <div id="datetime" class="text-right">
                         <p id="time" class="text-lg font-semibold text-gray-700"></p>
@@ -78,7 +80,8 @@
             </div>
         </div>
 
-        <!-- ===== Other Screens remain the same... ===== -->
+
+        <!-- ===== Catalog Screen ===== -->
         <div id="catalog-screen" class="screen p-4 overflow-y-auto">
              <div class="flex justify-between items-center mb-4 sticky top-0 bg-white py-2 z-10">
                 <h1 class="text-2xl font-bold text-gray-800">קטלוג מוצרים</h1>
@@ -125,10 +128,10 @@
         <!-- ===== Global Popup (Modal) ===== -->
         <div id="popup-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-40 p-4 transition-opacity duration-300">
             <div id="popup-content" class="bg-white rounded-lg shadow-2xl p-6 text-center max-w-sm w-full transform transition-all duration-300 scale-95 opacity-0">
-                <div id="popup-icon" class="text-5xl mb-4"></div>
+                <div id="popup-icon" class="h-20 flex items-center justify-center"></div>
                 <h2 id="popup-title" class="text-2xl font-bold text-gray-800 mb-2"></h2>
                 <p id="popup-message" class="text-gray-600 mb-6"></p>
-                <button id="popup-close-btn" onclick="hidePopup()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition">הבנתי</button>
+                <button id="popup-close-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition">הבנתי</button>
             </div>
         </div>
 
@@ -144,6 +147,7 @@
 
         // --- POPUP MESSAGE LIBRARY ---
         const popupMessages = {
+            loginSuccess: { icon: `<svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52"><circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/><path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg>`, title: 'התחברת בהצלחה!', message: ''},
             welcomeMorning: { icon: '☀️', title: 'בוקר טוב', message: 'כיף לראות אותך! מוכן להתחיל את היום?' },
             welcomeAfternoon: { icon: '👋', title: 'צהריים טובים', message: 'מקווים שהיום שלך הולך מצוין!' },
             welcomeEvening: { icon: '🌙', title: 'ערב טוב', message: 'שמחים שאתה כבר מארגן את ההזמנות למחר. לנו זה נותן זמן להתארגן ואתה תקבל הכל במועד.' },
@@ -166,11 +170,11 @@
         function showPopup(type, userName = '') {
             const popup = popupMessages[type];
             if (!popup) return;
-            document.getElementById('popup-icon').textContent = popup.icon;
+            document.getElementById('popup-icon').innerHTML = popup.icon;
             document.getElementById('popup-title').textContent = `${popup.title} ${userName}`;
             document.getElementById('popup-message').textContent = popup.message;
             document.getElementById('popup-overlay').classList.remove('hidden');
-            setTimeout(() => { // For animation
+            setTimeout(() => { 
                 document.getElementById('popup-content').classList.add('scale-100', 'opacity-100');
                 document.getElementById('popup-content').classList.remove('scale-95', 'opacity-0');
             }, 10);
@@ -198,11 +202,10 @@
                     credentials: 'omit',
                     body: JSON.stringify({ action, ...data }),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    redirect: 'follow',
-                    signal: controller.signal
                 });
-                if (!response.ok && response.type !== 'opaque') {
-                    throw new Error(`Network response error: ${response.statusText}`);
+                if (!response.ok) {
+                   const errorText = await response.text();
+                   throw new Error(`שגיאת רשת: ${response.status} ${response.statusText} - ${errorText}`);
                 }
                 const result = await response.json();
                 return result;
@@ -233,17 +236,22 @@
             if (result.status === 'success') {
                 loggedInUser = result.user;
                 errorP.classList.add('hidden');
-                const hour = new Date().getHours();
                 const customerFirstName = (loggedInUser['שם לקוח'] || '').split(' ')[0];
-                let welcomeType = 'welcomeAfternoon';
-                if (hour >= 5 && hour < 12) welcomeType = 'welcomeMorning';
-                else if (hour >= 18 || hour < 5) welcomeType = 'welcomeEvening';
-                
+
                 document.getElementById('popup-close-btn').onclick = () => {
                     hidePopup();
-                    loadCatalogAndStartRefresh(); // This is the corrected flow
+                    const hour = new Date().getHours();
+                    let welcomeType = 'welcomeAfternoon';
+                    if (hour >= 5 && hour < 12) welcomeType = 'welcomeMorning';
+                    else if (hour >= 18 || hour < 5) welcomeType = 'welcomeEvening';
+                    
+                    document.getElementById('popup-close-btn').onclick = () => {
+                        hidePopup();
+                        loadCatalogAndStartRefresh(); 
+                    };
+                    showPopup(welcomeType, customerFirstName);
                 };
-                showPopup(welcomeType, customerFirstName);
+                showPopup('loginSuccess');
             } else {
                 errorP.textContent = result.message || "מספר לקוח לא נמצא במערכת.";
                 errorP.classList.remove('hidden');
