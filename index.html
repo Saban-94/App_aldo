@@ -86,7 +86,7 @@
 
     <script>
         // --- CONFIGURATION ---
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyoY5eoMlsS3OqBArBJirZL8gxxUCr72Fxy6U50x_KhVxdzZdatGEdcv_pX_tjA60R2/exec"; // !!! החלף לכתובת הסקריפט שלך !!!
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw8ZGOs4YhQBJ1ivuaC37ELA6YdHWq_2v4DilPQezb4z4ICXAj3AS5dGa31nE_bP2La/exec";
         let loggedInUser = null;
         let products = [];
         let cart = [];
@@ -114,15 +114,20 @@
         async function apiCall(action, data) {
             showLoading(true);
             try {
+                // Apps Script web apps handle CORS, so a direct POST is fine.
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors', // Important for cross-origin requests
+                    mode: 'cors',
                     credentials: 'omit',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain for Apps Script simple POST
-                    body: JSON.stringify({ action, ...data })
+                    headers: {
+                      // We send as text/plain because Apps Script has issues parsing application/json with simple POSTs
+                      'Content-Type': 'text/plain;charset=utf-8', 
+                    },
+                    body: JSON.stringify({ action, ...data }),
+                    redirect: 'follow'
                 });
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error(`Network response was not ok: ${response.statusText}`);
                 }
                 const result = await response.json();
                 return result;
@@ -163,7 +168,7 @@
 
         async function loadCatalog() {
             showLoading(true);
-            // We use GET for fetching catalog data as it's simpler
+            // We use a simple GET request for fetching public catalog data
              try {
                 const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
                 if (!response.ok) throw new Error('Failed to fetch catalog');
@@ -313,3 +318,4 @@
     </script>
 </body>
 </html>
+
