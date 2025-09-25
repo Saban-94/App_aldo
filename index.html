@@ -24,8 +24,8 @@
         <!-- ===== Login Screen ===== -->
         <div id="login-screen" class="screen active-screen p-6 flex flex-col justify-center h-screen">
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">ברוכים הבאים</h1>
-            <p class="text-center text-gray-500 mb-8">אנא הזן מספר טלפון לכניסה</p>
-            <input type="tel" id="phone-input" class="w-full p-3 border border-gray-300 rounded-lg text-center text-lg tracking-widest mb-4" placeholder="050-1234567">
+            <p class="text-center text-gray-500 mb-8">אנא הזן מספר לקוח לכניסה</p>
+            <input type="number" id="customer-id-input" class="w-full p-3 border border-gray-300 rounded-lg text-center text-lg tracking-widest mb-4" placeholder="הזן מספר לקוח">
             <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-300">כניסה</button>
             <p id="login-error" class="text-red-500 text-center mt-4 hidden"></p>
         </div>
@@ -147,24 +147,24 @@
         // --- LOGIN LOGIC ---
         
         async function handleLogin() {
-            const phoneInput = document.getElementById('phone-input');
+            const idInput = document.getElementById('customer-id-input');
             const errorP = document.getElementById('login-error');
-            const phone = phoneInput.value.trim();
+            const customerId = idInput.value.trim();
 
-            if (!phone) {
-                errorP.textContent = "יש להזין מספר טלפון.";
+            if (!customerId) {
+                errorP.textContent = "יש להזין מספר לקוח.";
                 errorP.classList.remove('hidden');
                 return;
             }
             
-            const result = await apiCall('login', { phone });
+            const result = await apiCall('login', { customerId: customerId });
 
             if (result.status === 'success') {
                 loggedInUser = result.user;
                 errorP.classList.add('hidden');
                 loadCatalog();
             } else {
-                errorP.textContent = result.message || "מספר טלפון לא נמצא במערכת.";
+                errorP.textContent = result.message || "מספר לקוח לא נמצא במערכת.";
                 errorP.classList.remove('hidden');
             }
         }
@@ -308,9 +308,9 @@
         window.onload = function() {
             showLoading(false); // Make sure spinner is hidden on load
             const urlParams = new URLSearchParams(window.location.search);
-            const phoneFromAdalo = urlParams.get('phone');
-            if (phoneFromAdalo) {
-                document.getElementById('phone-input').value = phoneFromAdalo;
+            const customerIdFromAdalo = urlParams.get('customerId');
+            if (customerIdFromAdalo) {
+                document.getElementById('customer-id-input').value = customerIdFromAdalo;
                 handleLogin();
             }
         };
