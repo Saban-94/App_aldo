@@ -68,28 +68,31 @@
 
         function navigateTo(department) {
             if (window.Adalo) {
+                // This is the "magic" that connects HTML to Adalo's navigation
                 window.Adalo.postMessage({ type: 'navigate', screen: department });
             } else {
                 console.log(`Navigating to ${department}. In browser, this would redirect.`);
                 // For browser testing, you can redirect manually
-                if (department === 'Materials') window.location.href = './materials.html';
-                if (department === 'Containers') window.location.href = './containers.html';
+                const params = new URLSearchParams(window.location.search);
+                const customerId = params.get('customerId');
+                if (department === 'Materials') window.location.href = `./materials.html?customerId=${customerId}`;
+                if (department === 'Containers') window.location.href = `./containers.html?customerId=${customerId}`;
             }
         }
 
         function initMap(orders) {
-            const map = L.map('map').setView([32.2217, 34.9535], 9); 
+            // This is a placeholder as we don't have real coordinates.
+            // A real implementation would need lat/lon in the Google Sheet.
+            const map = L.map('map').setView([32.2217, 34.9535], 9); // Centered on Israel
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
             
-            // This is a placeholder. A real implementation would need lat/lon coordinates in the sheet.
-            // For now, we'll place markers randomly near Tel Aviv.
             const containerIcon = L.divIcon({ html: '🗑️', className: 'text-2xl', iconSize: [30, 30] });
             const materialIcon = L.divIcon({ html: '🏗️', className: 'text-2xl', iconSize: [30, 30] });
 
             orders.forEach((order, i) => {
-                 const lat = 32.0853 + (Math.random() - 0.5) * 0.1;
+                 const lat = 32.0853 + (Math.random() - 0.5) * 0.1; // Randomize around Tel Aviv
                  const lon = 34.7818 + (Math.random() - 0.5) * 0.1;
                  const icon = order.type === 'container' ? containerIcon : materialIcon;
                  L.marker([lat, lon], { icon: icon }).addTo(map)
@@ -98,22 +101,21 @@
         }
         
         async function loadDashboardData() {
-            // In a real Adalo implementation, user data comes from URL params on first load.
             const urlParams = new URLSearchParams(window.location.search);
             const customerId = urlParams.get('customerId');
             
             if(!customerId){
-                document.getElementById('user-name').textContent = "אורח";
+                document.getElementById('user-name').textContent = "אורח (נדרשת התחברות)";
                 return;
             }
 
-            // Fetch all data in one go
+            // Fetch all data in one go from the server
             const data = await fetch(SCRIPT_URL).then(res => res.json());
             
             loggedInUser = data['לקוחות'].find(c => c['מספר לקוח'] == customerId);
-            document.getElementById('user-name').textContent = loggedInUser ? loggedInUser['שם לקוח'] : "לא נמצא";
+            document.getElementById('user-name').textContent = loggedInUser ? loggedInUser['שם לקוח'] : "לקוח לא נמצא";
 
-            // Combine and sort recent orders
+            // Combine and sort recent orders from both sheets
             const recentMaterials = (data['הזמנות חומרי בניין'] || [])
                 .filter(o => o['מספר לקוח'] == customerId)
                 .map(o => ({...o, type: 'material', date: new Date(o['תאריך קליטה'])}));
@@ -124,11 +126,11 @@
 
             const allOrders = [...recentMaterials, ...recentContainers]
                 .sort((a, b) => b.date - a.date)
-                .slice(0, 5); // Get latest 5
+                .slice(0, 5); // Get the 5 latest orders
 
             renderRecentOrders(allOrders);
-            // We need addresses with lat/lon for a real map. This is a placeholder.
-            initMap(allOrders.map(o => ({type: o.type, address: o['פרטי אספקה'] || o['כתובת']})));
+            // This is a placeholder for the map and requires real coordinates in your data
+            initMap(allOrders.map(o => ({type: o.type, address: o['כתובת'] || o['פרטי אספקה']})));
         }
 
         function renderRecentOrders(orders) {
