@@ -85,9 +85,53 @@
             </div>
         </div>
     </div>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // Copy all the JavaScript from the previous fully working index.html
-        // Ensure SCRIPT_URL is correct and that loggedInUser is populated from URL params
+        // Placeholder for script URL and user data
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiy6HaR1JxTYAuocmQItx5X1OhK1kV2qDvYYgsECsCyb2SKXqplfE_8qXIUno0QRl1/exec";
+        let loggedInUser = null;
+
+        // Function to handle card clicks - will be used to communicate with Adalo
+        function navigateTo(department) {
+            if (window.Adalo) {
+                window.Adalo.postMessage({ type: 'navigate', screen: department });
+            } else {
+                // Fallback for testing in browser
+                alert(`מעבר למחלקת ${department}`);
+            }
+        }
+
+        // Initialize Map
+        function initMap() {
+            const map = L.map('map').setView([32.2217, 34.9535], 9); // Centered on central Israel
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // TODO: Add markers for active orders
+            // Example marker:
+            const markerIcon = L.divIcon({
+                html: '🏗️',
+                className: 'text-2xl',
+                iconSize: [30, 30]
+            });
+            L.marker([32.0853, 34.7818], { icon: markerIcon }).addTo(map) // Tel Aviv
+                .bindPopup('הזמנת חומרי בניין');
+        }
+
+        // Fetch user data and recent orders on load
+        window.onload = function() {
+            // In a real scenario, user data would come from Adalo
+            loggedInUser = { "שם לקוח": "ראמי", "מספר לקוח": "60123" };
+            document.getElementById('user-name').textContent = loggedInUser['שם לקוח'];
+
+            // Setup navigation
+            document.getElementById('materials-card').onclick = () => navigateTo('Materials');
+            document.getElementById('containers-card').onclick = () => navigateTo('Containers');
+
+            initMap();
+            // TODO: Fetch and display recent orders
+        }
     </script>
 </body>
 </html>
