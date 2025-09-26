@@ -8,7 +8,173 @@
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Assistant', sans-serif; overflow-y: hidden; }
-        .screen {
+        .screen {<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דשבורד ראשי</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS for map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Assistant', sans-serif; }
+        .dashboard-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="app-container" class="max-w-md mx-auto bg-white min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-md p-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-gray-500">שלום,</p>
+                    <h1 id="user-name" class="text-xl font-bold text-gray-800">...טוען</h1>
+                </div>
+                <img src="https://i.postimg.cc/CMsm57QV/image.png" alt="לוגו" class="h-12 rounded-md">
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="p-4 space-y-6">
+            <!-- Navigation Cards -->
+            <section>
+                <h2 class="text-lg font-semibold text-gray-700 mb-2">מחלקות ראשיות</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div onclick="navigateTo('Materials')" class="dashboard-card bg-blue-500 text-white rounded-lg p-4 text-center cursor-pointer">
+                        <h3 class="font-bold text-lg">חומרי בניין</h3>
+                        <p class="text-sm opacity-90">הזמנת חומרים</p>
+                    </div>
+                    <div onclick="navigateTo('Containers')" class="dashboard-card bg-green-500 text-white rounded-lg p-4 text-center cursor-pointer">
+                        <h3 class="font-bold text-lg">מכולות</h3>
+                        <p class="text-sm opacity-90">ניהול והזמנה</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Map Section -->
+            <section>
+                 <h2 class="text-lg font-semibold text-gray-700 mb-2">מיקום הזמנות פעילות</h2>
+                 <div id="map" class="h-48 w-full rounded-lg border shadow-sm"></div>
+            </section>
+
+            <!-- Recent Orders Section -->
+            <section>
+                <h2 class="text-lg font-semibold text-gray-700 mb-2">הזמנות אחרונות</h2>
+                <div id="recent-orders-list" class="space-y-2">
+                    <p class="text-gray-500">טוען הזמנות...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Leaflet JS for map -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiy6HaR1JxTYAuocmQItx5X1OhK1kV2qDvYYgsECsCyb2SKXqplfE_8qXIUno0QRl1/exec";
+        let loggedInUser = null;
+
+        function navigateTo(department) {
+            if (window.Adalo) {
+                // This is the "magic" that connects HTML to Adalo's navigation
+                window.Adalo.postMessage({ type: 'navigate', screen: department });
+            } else {
+                console.log(`Navigating to ${department}. In browser, this would redirect.`);
+                // For browser testing, you can redirect manually
+                const params = new URLSearchParams(window.location.search);
+                const customerId = params.get('customerId');
+                if (department === 'Materials') window.location.href = `./materials.html?customerId=${customerId}`;
+                if (department === 'Containers') window.location.href = `./containers.html?customerId=${customerId}`;
+            }
+        }
+
+        function initMap(orders) {
+            // This is a placeholder as we don't have real coordinates.
+            // A real implementation would need lat/lon in the Google Sheet.
+            const map = L.map('map').setView([32.2217, 34.9535], 9); // Centered on Israel
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+            
+            const containerIcon = L.divIcon({ html: '🗑️', className: 'text-2xl', iconSize: [30, 30] });
+            const materialIcon = L.divIcon({ html: '🏗️', className: 'text-2xl', iconSize: [30, 30] });
+
+            orders.forEach((order, i) => {
+                 const lat = 32.0853 + (Math.random() - 0.5) * 0.1; // Randomize around Tel Aviv
+                 const lon = 34.7818 + (Math.random() - 0.5) * 0.1;
+                 const icon = order.type === 'container' ? containerIcon : materialIcon;
+                 L.marker([lat, lon], { icon: icon }).addTo(map)
+                    .bindPopup(`<b>${order.type === 'container' ? 'הזמנת מכולה' : 'הזמנת חומרים'}</b><br>${order.address}`);
+            });
+        }
+        
+        async function loadDashboardData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const customerId = urlParams.get('customerId');
+            
+            if(!customerId){
+                document.getElementById('user-name').textContent = "אורח (נדרשת התחברות)";
+                return;
+            }
+
+            // Fetch all data in one go from the server
+            const data = await fetch(SCRIPT_URL).then(res => res.json());
+            
+            loggedInUser = data['לקוחות'].find(c => c['מספר לקוח'] == customerId);
+            document.getElementById('user-name').textContent = loggedInUser ? loggedInUser['שם לקוח'] : "לקוח לא נמצא";
+
+            // Combine and sort recent orders from both sheets
+            const recentMaterials = (data['הזמנות חומרי בניין'] || [])
+                .filter(o => o['מספר לקוח'] == customerId)
+                .map(o => ({...o, type: 'material', date: new Date(o['תאריך קליטה'])}));
+
+            const recentContainers = (data['הזמנות מכולות'] || [])
+                 .filter(o => o['מספר לקוח'] == customerId)
+                 .map(o => ({...o, type: 'container', date: new Date(o['תאריך הזמנה'])}));
+
+            const allOrders = [...recentMaterials, ...recentContainers]
+                .sort((a, b) => b.date - a.date)
+                .slice(0, 5); // Get the 5 latest orders
+
+            renderRecentOrders(allOrders);
+            // This is a placeholder for the map and requires real coordinates in your data
+            initMap(allOrders.map(o => ({type: o.type, address: o['כתובת'] || o['פרטי אספקה']})));
+        }
+
+        function renderRecentOrders(orders) {
+            const listEl = document.getElementById('recent-orders-list');
+            if (orders.length === 0) {
+                listEl.innerHTML = '<p class="text-gray-500">אין הזמנות אחרונות.</p>';
+                return;
+            }
+            listEl.innerHTML = orders.map(order => {
+                const isContainer = order.type === 'container';
+                const title = isContainer ? `בקשת מכולה (${order['סוג פעולה']})` : 'הזמנת חומרי בניין';
+                const address = order['כתובת'] || order['פרטי אספקה'];
+                const date = order.date.toLocaleDateString('he-IL');
+                const statusColor = order['סטטוס'] === 'חדשה' ? 'text-blue-500' : 'text-green-500';
+
+                return `
+                <div class="bg-gray-50 p-3 rounded-lg border">
+                    <div class="flex justify-between items-center">
+                        <p class="font-bold text-gray-800">${title}</p>
+                        <p class="text-sm font-semibold ${statusColor}">${order['סטטוס']}</p>
+                    </div>
+                    <p class="text-sm text-gray-600">${address}</p>
+                    <p class="text-xs text-gray-400 text-left">${date}</p>
+                </div>
+                `;
+            }).join('');
+        }
+
+        window.onload = loadDashboardData;
+    </script>
+</body>
+</html>
+
+
             position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
             transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
