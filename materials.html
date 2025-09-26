@@ -11,14 +11,13 @@
         .screen {
             position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
-            transition: opacity 0.3s ease-in-out;
-            opacity: 0;
-            pointer-events: none;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            opacity: 0; transform: scale(0.98); pointer-events: none;
         }
-        .active-screen { opacity: 1; pointer-events: auto; }
+        .active-screen { opacity: 1; transform: scale(1); pointer-events: auto; }
         #popup-overlay.hidden, #loading-spinner.hidden { display: none; }
         #popup-overlay, #loading-spinner { display: flex; }
-         .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 2; stroke-miterlimit: 10; stroke: #4caf50; fill: none; animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
+        .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 2; stroke-miterlimit: 10; stroke: #4caf50; fill: none; animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
         .checkmark { width: 56px; height: 56px; border-radius: 50%; display: block; stroke-width: 2; stroke: #fff; stroke-miterlimit: 10; margin: 10% auto; box-shadow: inset 0px 0px 0px #4caf50; animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both; }
         .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards; }
         @keyframes stroke { 100% { stroke-dashoffset: 0; } }
@@ -30,11 +29,10 @@
     </style>
 </head>
 <body class="bg-gray-100">
-
     <div id="app-container" class="max-w-md mx-auto bg-white h-screen shadow-lg relative overflow-hidden">
-        <!-- All screens from the previous index.html go here -->
-        <!-- Catalog, Product Detail, Cart Screens -->
-         <div id="catalog-screen" class="screen active-screen p-4 overflow-y-auto">
+
+        <!-- ===== Catalog Screen ===== -->
+        <div id="catalog-screen" class="screen active-screen p-4 overflow-y-auto">
              <div class="flex justify-between items-center mb-4 sticky top-0 bg-white py-2 z-10">
                 <h1 class="text-2xl font-bold text-gray-800">קטלוג מוצרים</h1>
                 <div class="relative">
@@ -47,6 +45,7 @@
             <div id="catalog-grid" class="grid grid-cols-2 gap-4"></div>
         </div>
 
+        <!-- ===== Product Detail Screen ===== -->
         <div id="product-detail-screen" class="screen overflow-y-auto">
             <div class="p-4 sticky top-0 bg-white z-10">
                 <button onclick="showScreen('catalog-screen')" class="mb-4 text-blue-600">&larr; חזרה לקטלוג</button>
@@ -59,6 +58,7 @@
             </div>
         </div>
         
+        <!-- ===== Cart Screen ===== -->
         <div id="cart-screen" class="screen p-4 flex flex-col h-full">
             <div class="flex items-center mb-4">
                  <button onclick="showScreen('catalog-screen')" class="p-2 text-blue-600">&larr; חזרה לקטלוג</button>
@@ -72,7 +72,7 @@
             </div>
         </div>
         
-        <!-- Global elements -->
+        <!-- ===== Global Elements ===== -->
         <div id="loading-spinner" class="hidden fixed inset-0 bg-white bg-opacity-75 items-center justify-center z-50">
             <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
         </div>
@@ -85,53 +85,165 @@
             </div>
         </div>
     </div>
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
     <script>
-        // Placeholder for script URL and user data
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiy6HaR1JxTYAuocmQItx5X1OhK1kV2qDvYYgsECsCyb2SKXqplfE_8qXIUno0QRl1/exec";
         let loggedInUser = null;
+        let products = [];
+        let cart = [];
+        let refreshInterval;
 
-        // Function to handle card clicks - will be used to communicate with Adalo
-        function navigateTo(department) {
-            if (window.Adalo) {
-                window.Adalo.postMessage({ type: 'navigate', screen: department });
-            } else {
-                // Fallback for testing in browser
-                alert(`מעבר למחלקת ${department}`);
+        const popupMessages = {
+            orderSuccess: { icon: '✅', title: 'ההזמנה נשלחה!', message: 'ההזמנה שלך התקבלה ונשלחה אלינו לוואטסאפ. ניצור קשר בהקדם.' },
+            cartAddSuccess: { icon: '🛒', title: 'נוסף לעגלה', message: 'המוצר נוסף לעגלה בהצלחה.' }
+        };
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active-screen'));
+            document.getElementById(screenId).classList.add('active-screen');
+        }
+        
+        function showLoading(isLoading) {
+            document.getElementById('loading-spinner').classList.toggle('hidden', !isLoading);
+        }
+
+        function showPopup(type, userName = '') {
+            const popup = popupMessages[type];
+            if (!popup) return;
+            document.getElementById('popup-icon').innerHTML = popup.icon;
+            document.getElementById('popup-title').textContent = `${popup.title} ${userName}`;
+            document.getElementById('popup-message').textContent = popup.message;
+            document.getElementById('popup-overlay').classList.remove('hidden');
+        }
+
+        function hidePopup() {
+            document.getElementById('popup-overlay').classList.add('hidden');
+        }
+        
+        async function apiCall(action, data) {
+            showLoading(true);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST', mode: 'cors', body: JSON.stringify({ action, ...data }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', signal: controller.signal
+                });
+                const responseText = await response.text();
+                return JSON.parse(responseText);
+            } catch (error) {
+                console.error("API Call Error:", error);
+                let message = error.message || 'שגיאת תקשורת עם השרת.';
+                if (error.name === 'AbortError') message = 'הבקשה נמשכה זמן רב מדי.';
+                return { status: 'error', message: message };
+            } finally {
+                clearTimeout(timeoutId);
+                showLoading(false);
+            }
+        }
+        
+        async function loadCatalog() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${SCRIPT_URL}?sheet=קטלוג מוצרים`);
+                products = await response.json();
+                renderCatalog();
+            } catch (error) {
+                 console.error("Catalog Load Error:", error);
+                 alert('שגיאה בטעינת הקטלוג.');
+            } finally {
+                showLoading(false);
             }
         }
 
-        // Initialize Map
-        function initMap() {
-            const map = L.map('map').setView([32.2217, 34.9535], 9); // Centered on central Israel
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            // TODO: Add markers for active orders
-            // Example marker:
-            const markerIcon = L.divIcon({
-                html: '🏗️',
-                className: 'text-2xl',
-                iconSize: [30, 30]
+        function renderCatalog() {
+            const grid = document.getElementById('catalog-grid');
+            grid.innerHTML = '';
+            products.forEach((product, index) => {
+                const card = document.createElement('div');
+                card.className = 'border rounded-lg p-2 shadow-sm cursor-pointer hover:shadow-md transition';
+                card.onclick = () => showProductDetails(index);
+                card.innerHTML = `
+                    <img src="${product['תמונת מוצר']}" alt="${product['שם מוצר']}" class="w-full h-24 object-cover rounded-md mb-2" onerror="this.src='https://placehold.co/400x300/e0e0e0/777?text=Image'">
+                    <h3 class="font-bold text-sm text-gray-800 truncate">${product['שם מוצר']}</h3>`;
+                grid.appendChild(card);
             });
-            L.marker([32.0853, 34.7818], { icon: markerIcon }).addTo(map) // Tel Aviv
-                .bindPopup('הזמנת חומרי בניין');
+        }
+        
+        function showProductDetails(productIndex) {
+            const product = products[productIndex];
+            const contentDiv = document.getElementById('product-detail-content');
+            contentDiv.innerHTML = `<img src="${product['תמונת מוצר']}" class="w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/e0e0e0/777?text=Image'"><div class="p-4"><h2 class="text-2xl font-bold mb-2">${product['שם מוצר']}</h2><p class="text-gray-600">${product['מפרט מוצר']}</p></div>`;
+            document.getElementById('add-to-cart-btn').onclick = () => addToCart(productIndex);
+            document.getElementById('quantity-input').value = 1;
+            showScreen('product-detail-screen');
         }
 
-        // Fetch user data and recent orders on load
+        function addToCart(productIndex) {
+            const product = products[productIndex];
+            const quantity = parseInt(document.getElementById('quantity-input').value, 10);
+            if (quantity > 0) {
+                const existingItem = cart.find(item => item['מק"ט'] === product['מק"ט']);
+                if (existingItem) { existingItem.quantity += quantity; } 
+                else { cart.push({ ...product, quantity }); }
+                updateCartUI();
+                document.getElementById('popup-close-btn').onclick = () => { hidePopup(); showScreen('catalog-screen'); };
+                showPopup('cartAddSuccess');
+            }
+        }
+
+        function updateCartUI() {
+            document.getElementById('cart-badge').textContent = cart.length;
+            const container = document.getElementById('cart-items-container');
+            if (cart.length === 0) { container.innerHTML = '<p class="text-center text-gray-500">עגלת הקניות ריקה</p>'; return; }
+            container.innerHTML = cart.map((item, index) => `
+                <div class="flex justify-between items-center border-b py-2">
+                    <div><p class="font-bold">${item['שם מוצר']}</p><p class="text-sm text-gray-600">כמות: ${item.quantity}</p></div>
+                    <button onclick="removeFromCart(${index})" class="text-red-500 hover:text-red-700">מחק</button>
+                </div>`).join('');
+        }
+        
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartUI();
+        }
+
+        async function submitOrder() {
+            if (cart.length === 0) return alert("עגלת הקניות ריקה.");
+            const deliveryAddress = document.getElementById('delivery-address-input').value;
+            if (!deliveryAddress) return alert("יש להזין כתובת למשלוח.");
+
+            const orderDetails = {
+                customerNumber: loggedInUser['מספר לקוח'], customerName: loggedInUser['שם לקוח'],
+                deliveryAddress, notes: document.getElementById('order-notes-input').value,
+                itemNames: cart.map(item => item['שם מוצר']).join('||'),
+                itemQuantities: cart.map(item => item.quantity).join('||'),
+            };
+
+            const result = await apiCall('submitMaterialOrder', { orderDetails });
+            
+            if (result.status === 'success' && result.whatsappUrl) {
+                window.open(result.whatsappUrl, '_blank');
+                cart = [];
+                updateCartUI();
+                document.getElementById('delivery-address-input').value = '';
+                document.getElementById('order-notes-input').value = '';
+                document.getElementById('popup-close-btn').onclick = () => { hidePopup(); showScreen('catalog-screen'); };
+                showPopup('orderSuccess');
+            } else {
+                alert(`שגיאה בשליחת ההזמנה: ${result.message || 'תקלה לא ידועה'}`);
+            }
+        }
+        
         window.onload = function() {
-            // In a real scenario, user data would come from Adalo
-            loggedInUser = { "שם לקוח": "ראמי", "מספר לקוח": "60123" };
-            document.getElementById('user-name').textContent = loggedInUser['שם לקוח'];
-
-            // Setup navigation
-            document.getElementById('materials-card').onclick = () => navigateTo('Materials');
-            document.getElementById('containers-card').onclick = () => navigateTo('Containers');
-
-            initMap();
-            // TODO: Fetch and display recent orders
-        }
+            const urlParams = new URLSearchParams(window.location.search);
+            loggedInUser = {
+                "שם לקוח": urlParams.get('name') || "אורח",
+                "מספר לקוח": urlParams.get('customerId') || "000000"
+            };
+            loadCatalog();
+        };
     </script>
 </body>
 </html>
+
