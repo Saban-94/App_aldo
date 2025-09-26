@@ -94,7 +94,7 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiy6HaR1JxTYAuocmQItx5X1OhK1kV2qDvYYgsECsCyb2SKXqplfE_8qXIUno0QRl1/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx07zliATi8KaNVWALPQugtzCsuJ1CojF_N8-6wUE3AKY18Lho66XZplGSf8v2xdaVf/exec";
         let loggedInUser = null;
         let activeContainers = [];
         let selectedOrderType = 'הורדה';
@@ -130,7 +130,6 @@
             btnElement.classList.add('bg-blue-500', 'text-white');
             btnElement.classList.remove('bg-gray-200');
 
-            // Show/hide relevant form sections
             const isDownload = type === 'הורדה';
             document.getElementById('start-date-section').style.display = isDownload ? 'block' : 'none';
             document.getElementById('existing-container-section').style.display = isDownload ? 'none' : 'block';
@@ -154,7 +153,8 @@
                     method: 'POST', mode: 'cors', body: JSON.stringify({ action, ...data }),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow'
                 });
-                return await response.json();
+                const responseText = await response.text();
+                return JSON.parse(responseText);
             } catch (error) {
                 console.error("API Call Error:", error);
                 return { status: 'error', message: 'שגיאת תקשורת עם השרת.' };
